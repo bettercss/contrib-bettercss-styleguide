@@ -25,12 +25,10 @@ module.exports = function (grunt) {
 	};
 
 	StyleGuide.prototype._prep = function() {
-
 		return Promise.props({
 			modules: this._getModulesDocs(),
 			destination: this._prepareDestination()
 		});
-
 	};
 
 	StyleGuide.prototype._getModulesDocs = function() {
@@ -90,7 +88,6 @@ module.exports = function (grunt) {
 
 				getModuleDoc
 					.then(function(docPath) {
-						console.log(docPath);
 						module.docs = docPath;
 					}, function() {
 						module.docs = false;
@@ -119,6 +116,7 @@ module.exports = function (grunt) {
 				reject();
 			}
 
+			// @TODO This needs to be tested I'm unsure if it even works.
 			pathToNodeDoc = grunt.file.expand({ filter: 'isDirectory' }, [
 				path.join(process.cwd(), '/node_modules/**/bettercss-' + module.type + '-' + module.name + '/docs/*')
 			]);
