@@ -90,6 +90,7 @@ module.exports = function (grunt) {
 
 				getModuleDoc
 					.then(function(docPath) {
+						console.log(docPath);
 						module.docs = docPath;
 					}, function() {
 						module.docs = false;
@@ -122,7 +123,7 @@ module.exports = function (grunt) {
 				path.join(process.cwd(), '/node_modules/**/bettercss-' + module.type + '-' + module.name + '/docs/*')
 			]);
 
-			if (pathToNodeDoc) {
+			if (pathToNodeDoc && pathToNodeDoc.length) {
 				// We only want one mate!
 				resolve(pathToNodeDoc.shift());
 			} else {
@@ -187,51 +188,3 @@ module.exports = function (grunt) {
 	});
 
 };
-
-
-//var getModuleFromPath = function(pathToModule, options) {
-//	var pathSegments = pathToModule.split(path.sep);
-//	var module;
-//
-//	module = {
-//		name: pathSegments.pop(),
-//		type: pathSegments.pop(),
-//		path: pathToModule
-//	};
-//
-//	// @TODO Review this part maybe we need todo more error checking
-//	module.docs = getPathToDoc(module, options.node);
-//	return module;
-//};
-//
-//var getPathToDoc = function(module, lookInNodeModules) {
-//
-//	var pathToLocalDoc = path.join(module.path, '/docs/' + module.name + '.html');
-//	var	pathToNodeDoc;
-//
-//	// Ok we have a doc file lets use this one.
-//	if (grunt.file.exists(pathToLocalDoc)) {
-//		return pathToLocalDoc;
-//	}
-//
-//	// Options for looking in node_modules is disabled
-//	if (!lookInNodeModules) {
-//		return false;
-//	}
-//
-//
-//	// Look in the node_mdoules folder for base docs
-//	var lookUpNode = path.join(process.cwd(), 'node_modules/**/bettercss-' + module.type + '-' + module.name + '/docs/*');
-//	grunt.file.expand({ filter: 'isFile' }, lookUpNode).forEach(function(pathToHtmlDoc) {
-//
-//		if (pathToHtmlDoc) {
-//			pathToNodeDoc = pathToHtmlDoc;
-//		} else {
-//			pathToNodeDoc = false;
-//		}
-//
-//	});
-//
-//	return pathToNodeDoc;
-//
-//};
