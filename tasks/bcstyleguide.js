@@ -110,7 +110,8 @@ module.exports = function (grunt) {
 
 			contentToWrite = compiledTpl({
 				content: moduleDocContent,
-				nav: frame.nav
+				nav: frame.nav,
+				css: path.join(process.cwd(), this.options.css) // @TODO possibly some more validation for this in future
 			});
 
 			grunt.file.write(path.join(frame.path, '/' + module.name + '.html'), contentToWrite);
@@ -218,7 +219,7 @@ module.exports = function (grunt) {
 			}
 
 			// @TODO This needs to be tested I'm unsure if it even works.
-			pathToNodeDoc = grunt.file.expand({ filter: 'isDirectory' }, [
+			pathToNodeDoc = grunt.file.expand({ filter: 'isFile' }, [
 				path.join(process.cwd(), '/node_modules/**/bettercss-' + module.type + '-' + module.name + '/docs/*')
 			]);
 
@@ -282,9 +283,6 @@ module.exports = function (grunt) {
 		});
 	};
 
-
-
-
 	// ------
 
 	grunt.registerMultiTask('bcstyleguide', 'Generate BetterCSS style guides', function () {
@@ -295,7 +293,8 @@ module.exports = function (grunt) {
 		var options = this.options({
 			local: path.join(process.cwd(), '/sass'),
 			node: false,
-			destination: path.join(process.cwd(), '/dist/styleguide')
+			destination: path.join(process.cwd(), '/dist/styleguide'),
+			css: path.join(process.cwd(), '/css/bundle.css')
 		});
 
 		styleguide = new StyleGuide(options);
@@ -308,20 +307,6 @@ module.exports = function (grunt) {
 				grunt.log.error(error);
 				done();
 			});
-
-
-		//
-		// prepare a copy of the frame for usage & navigation
-
-		// read module doc and parse
-
-
-		// build menu structure ready for insert
-
-		// process modules and create files in output location
-
-		// insert menu into index file
-
 	});
 
 };
