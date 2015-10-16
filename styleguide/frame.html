@@ -1,7 +1,9 @@
-<div>
-	<%=menu%>
-</div>
+<ul>
+	<% _.forEach(nav, function(item) { %>
+	<li><a href="<%= item.href %>"><%= item.name %></a></li>
+	<% }); %>
+</ul>
 
 <div>
-	<%=content%>
+	<%= content %>
 </div>

@@ -2,51 +2,146 @@
 var path = require('path');
 var Promise = require('bluebird');
 var fs = require('fs-extra');
+var _ = require('lodash');
+var marked = require('marked');
 
 module.exports = function (grunt) {
 
+	// Setup marked options for code parsing
+	marked.setOptions({
+		highlight: function (code) {
+			return require('highlight.js').highlightAuto(code).value;
+		}
+	});
+
+
+
 	function StyleGuide(options) {
 		this.options = options;
-		return this._make();
 	}
 
+	StyleGuide.prototype.make = function() {
+		return this._make();
+	};
+
+	// ------
+
 	StyleGuide.prototype._make = function() {
-
-		return this._prep();
-
-		//return Promise.props({
-		//	modules: this._getModulesPaths(),
-		//	destination: this._prepareDestination()
-		//}).then(function(result) {
-		//	console.log(this.destination);
-		//	console.log(result.modules, result.destination);
-		//}.bind(this));
-
+		return this._prep()
+			.then(function(prep) {
+				return this._process(prep);
+			}.bind(this))
+			.then(function() {
+				// Files got process we are good
+			}, function() {
+				// Something happened lets do clean up
+			});
 	};
 
 	StyleGuide.prototype._prep = function() {
 		return Promise.props({
-			modules: this._getModulesDocs(),
-			destination: this._prepareDestination()
+			modules: this._getModules(),
+			frame: this._setupFrame()
 		});
 	};
 
-	StyleGuide.prototype._getModulesDocs = function() {
+	StyleGuide.prototype._process = function(prep) {
+		var modules = prep.modules;
+		var frame = prep.frame;
 
+		if (!modules) {
+			// We need to remove the styleguide folder as we have no modules
+			// function to process cleanup on error
+			return Promise.reject();
+		}
+
+		return this._buildNavigationForDoc(modules)
+			.then(function(nav) {
+				frame = _.merge(frame, {
+					nav: nav
+				});
+				return this._writeModulesDocs(modules, frame);
+			}.bind(this))
+
+	};
+
+	// Modules
+
+	StyleGuide.prototype._buildNavigationForDoc = function(modules) {
+		var nav;
+
+		nav = modules.map(function(module) {
+			return {
+				name: _.capitalize(module.name),
+				href: module.name + '.html'
+			};
+		});
+
+		return Promise.resolve(nav);
+	};
+
+	StyleGuide.prototype._writeModulesDocs = function(modules, frame) {
+		var promises = [];
+
+		modules.forEach(function(module) {
+			promises.push(new Promise(function(resolve, reject) {
+				return this._writeModuleDoc(module, frame);
+			}.bind(this)));
+		}.bind(this));
+
+		return Promise.all(promises)
+			.then(function(modules) {
+				return modules;
+			});
+	};
+
+	StyleGuide.prototype._writeModuleDoc= function(module, frame) {
+		return new Promise(function (resolve, reject) {
+			var moduleDocContent = grunt.file.read(module.docs);
+			var compiledTpl = _.template(frame.frameContent);
+			var contentToWrite;
+
+			// @TODO test this doesn't fall over :P
+			if (!moduleDocContent) {
+				reject(new Error('Couldn\'t read content from ' + module.name + '.html'));
+			}
+
+			moduleDocContent = this._parseCodeBlocks(moduleDocContent);
+
+			contentToWrite = compiledTpl({
+				content: moduleDocContent,
+				nav: frame.nav
+			});
+
+			grunt.file.write(path.join(frame.path, '/' + module.name + '.html'), contentToWrite);
+
+			resolve(module.name + ' was written to disk');
+		}.bind(this));
+	};
+
+	StyleGuide.prototype._parseCodeBlocks = function(fileContent) {
+		var codeBlocks;
+
+		codeBlocks = fileContent.match(/(`{3}[\s\S]*?`{3})/g);
+		if (codeBlocks.length) {
+			codeBlocks.forEach(function(code) {
+				var parsed = marked(code);
+				fileContent = fileContent.replace(/(`{3}[\s\S]*?`{3})/, parsed);
+			});
+		}
+
+		return fileContent;
+	};
+
+	StyleGuide.prototype._getModules = function() {
 		return this._getModulesPaths()
 			.then(function(paths) {
 				return this._getModulesByPath(paths);
 			}.bind(this))
 			.then(function(modules) {
-				return this._addDocToModule(modules);
-			}.bind(this))
-			.then(function(modules) {
-				console.log(modules);
-			});
-
+				return this._filterUnusableModules(modules);
+			}.bind(this));
 	};
-
-	// ------
 
 	StyleGuide.prototype._getModulesPaths = function() {
 		return new Promise(function (resolve) {
@@ -76,29 +171,35 @@ module.exports = function (grunt) {
 			});
 
 			resolve(modules);
-
 		});
 	};
 
-	StyleGuide.prototype._addDocToModule = function(modules) {
-		return new Promise(function (resolve, reject) {
+	StyleGuide.prototype._filterUnusableModules = function(modules) {
+		var promises = [];
 
-			modules = modules.map(function(module) {
+		modules.forEach(function(module) {
+			promises.push(new Promise(function(resolve) {
 				var getModuleDoc = this._getDocForModule(module);
 
 				getModuleDoc
-					.then(function(docPath) {
-						module.docs = docPath;
-					}, function() {
-						module.docs = false;
-					});
+				.then(function(docPath) {
+					module.docs = docPath;
+					resolve(module);
+				}, function() {
+					module.docs = false;
+					resolve(module);
+				});
 
-				return module;
-			}.bind(this));
-
-			resolve(modules);
-
+			}.bind(this)));
 		}.bind(this));
+
+
+		return Promise.all(promises)
+		.then(function(modules) {
+			return modules.filter(function(module) {
+				return (module.docs) ? true : false;
+			});
+		});
 	};
 
 	StyleGuide.prototype._getDocForModule = function(module) {
@@ -131,23 +232,58 @@ module.exports = function (grunt) {
 		}.bind(this));
 	};
 
-	// ------
+	// Frame
+
+	StyleGuide.prototype._setupFrame = function(destination) {
+
+		return this._prepareDestination()
+			.then(function(destination) {
+				return this._frameSetup(destination)
+			}.bind(this));
+
+	};
 
 	StyleGuide.prototype._prepareDestination = function() {
 		return new Promise(function (resolve, reject) {
 			var from = path.join(path.dirname(__dirname), '/styleguide/');
 			var to = path.join(this.options.destination, '/styleguide/');
+			var destination;
+
+			destination = {
+				path: to,
+				frame: path.join(to, '/frame.html'),
+				index: path.join(to, '/index.html')
+			};
 
 			fs.copy(from, to, function (error) {
 				if (error) {
 					reject(error);
 				}
 
-				this.destination = to;
-				resolve('Destination was setup!');
+				resolve(destination);
 			}.bind(this));
 		}.bind(this));
 	};
+
+	StyleGuide.prototype._frameSetup = function(destination) {
+		return new Promise(function (resolve, reject) {
+			var frameContent = grunt.file.read(destination.frame);
+
+			// @TODO test this doesn't fall over :P
+			if (!frameContent) {
+				reject(new Error('Couldn\'t read content from frame.html'));
+			}
+
+			destination = _.merge(destination, {
+				frameContent: frameContent
+			});
+
+			resolve(destination);
+		});
+	};
+
+
+
 
 	// ------
 
@@ -162,7 +298,9 @@ module.exports = function (grunt) {
 			destination: path.join(process.cwd(), '/dist/styleguide')
 		});
 
-		styleguide = new StyleGuide(options)
+		styleguide = new StyleGuide(options);
+
+		styleguide.make()
 			.then(function() {
 				grunt.log.ok('Style guide was built');
 				done();
@@ -172,10 +310,11 @@ module.exports = function (grunt) {
 			});
 
 
+		//
+		// prepare a copy of the frame for usage & navigation
 
-		// Copy styleguide folder to new location not including sass folder
+		// read module doc and parse
 
-		// Get all module docs to be built int styleguide & parse the markdown code samples
 
 		// build menu structure ready for insert
 
