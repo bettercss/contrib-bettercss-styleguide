@@ -4,6 +4,13 @@ var path = require('path');
 var Promise = require('bluebird');
 var marked = require('marked');
 
+// Synchronous highlighting with highlight.js
+marked.setOptions({
+	highlight: function (code) {
+		return require('highlight.js').highlightAuto(code).value;
+	}
+});
+
 module.exports = function(grunt) {
 	var styleGuide;
 	var sanitizeOptions;
@@ -162,7 +169,8 @@ module.exports = function(grunt) {
 			contentToWrite = frame({
 				content: module.doc,
 				nav: nav,
-				css:  cssPath
+				css:  cssPath,
+				active: module
 			});
 
 			written = grunt.file.write(outputPath, contentToWrite);
