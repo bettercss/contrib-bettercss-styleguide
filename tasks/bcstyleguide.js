@@ -1,7 +1,6 @@
 'use strict';
 var _ = require('lodash');
 var path = require('path');
-var Promise = require('bluebird');
 var marked = require('marked');
 
 // Synchronous highlighting with highlight.js
