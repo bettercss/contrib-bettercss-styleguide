@@ -23,7 +23,7 @@ module.exports = function(grunt) {
 	// @TODO Add more sanitize checks for options
 	sanitizeOptions = function(options) {
 
-		if (_.isArray(options.modulePaths) && !options.modulePaths.length) {
+		if (_.isArray(options.modulesPaths) && !options.modulesPaths.length) {
 			grunt.fail.fatal('Invalid module paths');
 		}
 
@@ -35,9 +35,9 @@ module.exports = function(grunt) {
 			grunt.fail.fatal('Please provide a CSS file');
 		}
 
-		if (_.isString(options.modulePaths)) {
+		if (_.isString(options.modulesPaths)) {
 			options = _.assign({}, options, {
-				modulePaths: [options.modulePaths]
+				modulesPaths: [options.modulesPaths]
 			});
 		}
 
@@ -219,7 +219,7 @@ module.exports = function(grunt) {
 
 		options = sanitizeOptions(options);
 
-		modules = moduleHelpers.getInstalledModules(options.modulePaths);
+		modules = moduleHelpers.getInstalledModules(options.modulesPaths);
 
 		if (options.includeBaseModules) {
 			modules = modules.concat(moduleHelpers.getBaseModule(modules));
@@ -241,7 +241,7 @@ module.exports = function(grunt) {
 
 		// Set some defaults if options are not set
 		var options = this.options({
-			modulePaths: [],
+			modulesPaths: [],
 			output: '',
 			frame: '',
 			css: '',
